@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mol* Viewer Setup</title>
+    <script src="https://unpkg.com/molstar/build/viewer/molstar.js"></script>
+    <style>
+        #molstar { width: 100%; height: 600px; }
+        button { margin: 10px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Mol* Protein Viewer</h2>
+    <div id="molstar"></div>
+    <button onclick="loadProtein()">Load Protein (3K8Y)</button>
+
+    <script>
+        let viewer;
+
+        function setupMolstar() {
+            viewer = new molstar.Viewer('molstar'); // Create viewer in the div
+        }
+
+        async function loadProtein() {
+            await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
+        }
+
+        // Initialize Mol* when the page loads
+        window.onload = setupMolstar;
+    </script>
+</body>
+</html>
