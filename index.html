@@ -19,13 +19,17 @@
         let viewer;
 
         async function setupMolstar() {
-            viewer = new molstar.Viewer('molstar'); // Initialize viewer
-            console.log("Mol* viewer initialized.");
+            try {
+                viewer = new molstar.Viewer('molstar'); // Initialize viewer
+                console.log("Mol* viewer initialized.");
+            } catch (error) {
+                console.error("Error initializing Mol*:", error);
+            }
         }
 
         async function loadProtein() {
-            if (!viewer) {
-                console.error("Mol* viewer is not initialized yet.");
+            if (!viewer || !viewer.plugin || !viewer.plugin.managers) {
+                console.error("Mol* viewer is not properly initialized yet.");
                 return;
             }
             try {
@@ -37,7 +41,7 @@
             }
         }
 
-        // Ensure Mol* is fully loaded before interacting
+        // Wait for the page to fully load before initializing Mol*
         window.onload = async () => {
             await setupMolstar();
         };
