@@ -18,16 +18,29 @@
     <script>
         let viewer;
 
-        function setupMolstar() {
-            viewer = new molstar.Viewer('molstar'); // Create viewer in the div
+        async function setupMolstar() {
+            viewer = new molstar.Viewer('molstar'); // Initialize viewer
+            console.log("Mol* viewer initialized.");
         }
 
         async function loadProtein() {
-            await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
+            if (!viewer) {
+                console.error("Mol* viewer is not initialized yet.");
+                return;
+            }
+            try {
+                console.log("Loading protein 3K8Y...");
+                await viewer.loadStructureFromUrl('https://files.rcsb.org/download/3K8Y.pdb', 'pdb');
+                console.log("Protein 3K8Y loaded successfully!");
+            } catch (error) {
+                console.error("Error loading protein:", error);
+            }
         }
 
-        // Initialize Mol* when the page loads
-        window.onload = setupMolstar;
+        // Ensure Mol* is fully loaded before interacting
+        window.onload = async () => {
+            await setupMolstar();
+        };
     </script>
 </body>
 </html>
