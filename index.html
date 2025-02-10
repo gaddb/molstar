@@ -11,15 +11,16 @@
     }
 
     async function loadProtein() {
-        // Ensure viewer is initialized
-        if (!viewer || !viewer.plugin || !viewer.plugin.managers) {
-            console.error("Mol* viewer is not properly initialized yet.");
+        if (!viewer) {
+            console.error("Mol* viewer is not initialized yet.");
             return;
         }
+        
         try {
+            console.log("Waiting for Mol* to stabilize...");
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Extra delay for stability
+
             console.log("Loading protein 1CRN...");
-            // Wait a moment to ensure Mol* is fully initialized
-            await new Promise(resolve => setTimeout(resolve, 1000));
             await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
             console.log("Protein 1CRN loaded successfully!");
         } catch (error) {
@@ -28,6 +29,7 @@
     }
 
     window.onload = async () => {
+        console.log("Page loaded. Initializing Mol*...");
         await setupMolstar();
     };
 </script>
