@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mol* Viewer on GitHub Pages</title>
-    <!-- Ensure the Mol* script loads properly -->
     <script>
         function loadMolstarScript() {
             let script = document.createElement("script");
-            script.src = "https://cdn.jsdelivr.net/npm/molstar/build/viewer/molstar.js"; // Try loading from jsdelivr
+            script.src = "https://cdn.jsdelivr.net/npm/molstar/build/viewer/molstar.js"; // Load from jsdelivr
             script.onload = () => {
                 console.log("Mol* library loaded successfully.");
                 setupMolstar(); // Initialize Mol* after script loads
@@ -56,11 +55,17 @@
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
                 console.log("Loading protein 1CRN...");
+                const response = await fetch('https://files.rcsb.org/download/1CRN.pdb');
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch PDB file: ${response.status} ${response.statusText}`);
+                }
+
                 await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
                 console.log("Protein 1CRN loaded successfully!");
             } catch (error) {
                 console.error("Error loading protein:", error);
-                alert("Error loading protein. See console for details.");
+                alert(`Error loading protein: ${error.message}. See console for details.`);
             }
         }
 
