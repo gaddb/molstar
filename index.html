@@ -4,7 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mol* Viewer on GitHub Pages</title>
-    <script src="https://cdn.jsdelivr.net/npm/molstar/build/viewer/molstar.js"></script>
+    <!-- Ensure the Mol* script loads properly -->
+    <script>
+        function loadMolstarScript() {
+            let script = document.createElement("script");
+            script.src = "https://cdn.jsdelivr.net/npm/molstar/build/viewer/molstar.js"; // Try loading from jsdelivr
+            script.onload = () => {
+                console.log("Mol* library loaded successfully.");
+                setupMolstar(); // Initialize Mol* after script loads
+            };
+            script.onerror = () => {
+                console.error("Mol* library failed to load.");
+                alert("Error: Mol* library could not be loaded.");
+            };
+            document.head.appendChild(script);
+        }
+    </script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
         #molstar { width: 80%; height: 600px; margin: auto; border: 1px solid #ccc; }
@@ -21,8 +36,8 @@
 
         function setupMolstar() {
             if (typeof molstar === "undefined") {
-                console.error("Mol* library did not load. Check the script source.");
-                alert("Error: Mol* library did not load. Please check console.");
+                console.error("Mol* library did not load.");
+                alert("Error: Mol* library is not available.");
                 return;
             }
             viewer = new molstar.Viewer('molstar');
@@ -49,10 +64,8 @@
             }
         }
 
-        window.onload = () => {
-            console.log("Page loaded. Initializing Mol*...");
-            setupMolstar();
-        };
+        // Load the Mol* script before initializing the viewer
+        window.onload = loadMolstarScript;
     </script>
 </body>
 </html>
