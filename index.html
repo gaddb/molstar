@@ -1,44 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mol* Viewer on GitHub Pages</title>
-    <script src="https://unpkg.com/molstar/build/viewer/molstar.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        #molstar { width: 80%; height: 600px; margin: auto; }
-        button { margin: 10px; padding: 10px; font-size: 16px; }
-    </style>
-</head>
-<body>
-    <h1>Mol* Protein Viewer</h1>
-    <div id="molstar"></div>
-    <button onclick="loadProtein()">Load Protein (1CRN)</button>
+<script>
+    let viewer;
 
-    <script>
-        let viewer;
-
-        async function setupMolstar() {
-            viewer = new molstar.Viewer('molstar');
+    async function setupMolstar() {
+        try {
+            viewer = new molstar.Viewer('molstar'); // Initialize viewer
             console.log("Mol* Viewer initialized!");
+        } catch (error) {
+            console.error("Error initializing Mol*:", error);
         }
+    }
 
-        async function loadProtein() {
-            if (!viewer) {
-                console.error("Mol* viewer is not initialized yet.");
-                return;
-            }
-            try {
-                console.log("Loading protein 1CRN...");
-                await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
-                console.log("Protein 1CRN loaded successfully!");
-            } catch (error) {
-                console.error("Error loading protein:", error);
-            }
+    async function loadProtein() {
+        // Ensure viewer is initialized
+        if (!viewer || !viewer.plugin || !viewer.plugin.managers) {
+            console.error("Mol* viewer is not properly initialized yet.");
+            return;
         }
+        try {
+            console.log("Loading protein 1CRN...");
+            // Wait a moment to ensure Mol* is fully initialized
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
+            console.log("Protein 1CRN loaded successfully!");
+        } catch (error) {
+            console.error("Error loading protein:", error);
+        }
+    }
 
-        window.onload = setupMolstar; // Initialize Mol* when page loads
-    </script>
-</body>
-</html>
+    window.onload = async () => {
+        await setupMolstar();
+    };
+</script>
