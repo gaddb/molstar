@@ -26,8 +26,8 @@
 
                 console.log("✅ Mol* Viewer initialized!");
 
-                // Wait for the plugin to be ready before trying to resize
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Wait for the plugin to be fully ready before resizing
+                await new Promise(resolve => setTimeout(resolve, 1500));
 
                 if (viewer?.plugin?.canvas3d) {
                     viewer.handleResize();
@@ -65,7 +65,7 @@
                 console.log("✅ Protein 1CRN loaded successfully!");
 
                 // Ensure Mol* resizes after the structure is loaded
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 if (viewer?.plugin?.canvas3d) {
                     viewer.handleResize();
                     console.log("✅ Mol* Viewer resized successfully after loading protein!");
