@@ -23,6 +23,10 @@
             try {
                 console.log("⏳ Initializing Mol* Viewer...");
                 viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
+
+                // Ensure the viewer is fully loaded before continuing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
                 console.log("✅ Mol* Viewer initialized!");
             } catch (error) {
                 console.error("❌ Error initializing Mol*:", error);
@@ -46,19 +50,32 @@
                 const pdbData = await response.text();
                 console.log("✅ PDB data fetched successfully!");
 
-                console.log("⏳ Parsing structure in Mol*...");
-                
-                // Ensure the PDB format is recognized
+                console.log("⏳ Checking PDB format compatibility...");
                 const formatProvider = viewer.plugin.dataFormats.get('pdb');
                 if (!formatProvider) {
-                    throw new Error("❌ Mol* does not support PDB format.");
+                    throw new Error("❌ Mol* does not recognize PDB format.");
                 }
 
+                console.log("⏳ Parsing structure...");
                 const parsedData = await formatProvider.parse(viewer.plugin, pdbData);
-                const trajectory = await viewer.plugin.builders.structure.parseTrajectory(parsedData, 'pdb');
-                await viewer.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
+                if (!parsedData) throw new Error("❌ Parsing failed - Data is undefined.");
 
+                console.log("✅ Parsing successful. Creating trajectory...");
+                const trajectory = await viewer.plugin.builders.structure.parseTrajectory(parsedData, 'pdb');
+                if (!trajectory) throw new Error("❌ Trajectory creation failed.");
+
+                console.log("✅ Trajectory created. Creating model...");
+                const model = await viewer.plugin.builders.structure.createModel(trajectory);
+                if (!model) throw new Error("❌ Model creation failed.");
+
+                console.log("✅ Model created. Creating structure...");
+                const structure = await viewer.plugin.builders.structure.createStructure(model);
+                if (!structure) throw new Error("❌ Structure creation failed.");
+
+                console.log("✅ Structure created. Adding to hierarchy...");
+                await viewer.plugin.builders.structure.hierarchy.add(structure);
                 console.log("✅ Protein 1CRN loaded successfully!");
+
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
                 alert(`Error loading protein: ${error.message}. See console for details.`);
