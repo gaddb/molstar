@@ -1,76 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mol* Viewer on GitHub Pages</title>
-    <script>
-        function loadMolstarScript() {
-            let script = document.createElement("script");
-            script.src = "https://cdn.jsdelivr.net/npm/molstar/build/viewer/molstar.js"; // Load from jsdelivr
-            script.onload = () => {
-                console.log("Mol* library loaded successfully.");
-                setupMolstar(); // Initialize Mol* after script loads
-            };
-            script.onerror = () => {
-                console.error("Mol* library failed to load.");
-                alert("Error: Mol* library could not be loaded.");
-            };
-            document.head.appendChild(script);
+<script>
+    function loadMolstarScript() {
+        let script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/molstar/build/viewer/molstar.js"; // Load from jsdelivr
+        script.onload = () => {
+            console.log("Mol* library loaded successfully.");
+            setupMolstar(); // Initialize Mol* after script loads
+        };
+        script.onerror = () => {
+            console.error("Mol* library failed to load.");
+            alert("Error: Mol* library could not be loaded.");
+        };
+        document.head.appendChild(script);
+    }
+
+    let viewer;
+
+    function setupMolstar() {
+        if (typeof molstar === "undefined") {
+            console.error("Mol* library did not load.");
+            alert("Error: Mol* library is not available.");
+            return;
         }
-    </script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        #molstar { width: 80%; height: 600px; margin: auto; border: 1px solid #ccc; }
-        button { margin: 10px; padding: 10px; font-size: 16px; }
-    </style>
-</head>
-<body>
-    <h1>Mol* Protein Viewer</h1>
-    <div id="molstar"></div>
-    <button onclick="loadProtein()">Load Protein (1CRN)</button>
+        viewer = new molstar.Viewer('molstar');
+        console.log("Mol* Viewer initialized!");
+    }
 
-    <script>
-        let viewer;
-
-        function setupMolstar() {
-            if (typeof molstar === "undefined") {
-                console.error("Mol* library did not load.");
-                alert("Error: Mol* library is not available.");
-                return;
-            }
-            viewer = new molstar.Viewer('molstar');
-            console.log("Mol* Viewer initialized!");
+    async function loadProtein() {
+        if (!viewer) {
+            console.error("Mol* viewer is not initialized yet.");
+            alert("Error: Mol* viewer is not initialized yet.");
+            return;
         }
 
-        async function loadProtein() {
-            if (!viewer) {
-                console.error("Mol* viewer is not initialized yet.");
-                alert("Error: Mol* viewer is not initialized yet.");
-                return;
+        try {
+            console.log("Waiting for Mol* to stabilize...");
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            console.log("Fetching protein 1CRN...");
+            const response = await fetch('https://files.rcsb.org/download/1CRN.pdb');
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch PDB file: ${response.status} ${response.statusText}`);
             }
 
-            try {
-                console.log("Waiting for Mol* to stabilize...");
-                await new Promise(resolve => setTimeout(resolve, 2000));
+            const pdbData = await response.text();
 
-                console.log("Loading protein 1CRN...");
-                const response = await fetch('https://files.rcsb.org/download/1CRN.pdb');
-
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch PDB file: ${response.status} ${response.statusText}`);
-                }
-
-                await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
-                console.log("Protein 1CRN loaded successfully!");
-            } catch (error) {
-                console.error("Error loading protein:", error);
-                alert(`Error loading protein: ${error.message}. See console for details.`);
-            }
+            console.log("Loading PDB data into Mol*...");
+            await viewer.loadStructureFromData(pdbData, 'pdb');
+            console.log("Protein 1CRN loaded successfully!");
+        } catch (error) {
+            console.error("Error loading protein:", error);
+            alert(`Error loading protein: ${error.message}. See console for details.`);
         }
+    }
 
-        // Load the Mol* script before initializing the viewer
-        window.onload = loadMolstarScript;
-    </script>
-</body>
-</html>
+    window.onload = loadMolstarScript;
+</script>
