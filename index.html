@@ -25,29 +25,10 @@
                 viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
 
                 console.log("✅ Mol* Viewer initialized!");
-
-                // Wait until Mol* is fully ready before resizing
-                await waitForMolstarReady();
-                viewer.handleResize();
-                console.log("✅ Mol* Viewer resized successfully!");
                 
             } catch (error) {
                 console.error("❌ Error initializing Mol*:", error);
                 alert("Error: Mol* viewer could not be initialized.");
-            }
-        }
-
-        async function waitForMolstarReady() {
-            console.log("⏳ Waiting for Mol* to be fully ready...");
-            let attempts = 0;
-            while (!viewer?.plugin?.canvas3d && attempts < 10) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                attempts++;
-            }
-            if (!viewer?.plugin?.canvas3d) {
-                console.warn("⚠ Mol* Viewer is still not fully ready after waiting.");
-            } else {
-                console.log("✅ Mol* Viewer is now fully ready!");
             }
         }
 
@@ -77,11 +58,6 @@
                 await viewer.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
 
                 console.log("✅ Protein 1CRN loaded successfully!");
-
-                // Ensure Mol* resizes after the structure is loaded
-                await waitForMolstarReady();
-                viewer.handleResize();
-                console.log("✅ Mol* Viewer resized successfully after loading protein!");
 
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
