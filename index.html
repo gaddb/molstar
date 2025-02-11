@@ -24,9 +24,11 @@
                 console.log("⏳ Initializing Mol* Viewer...");
                 viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
 
-                // Wait until Mol* is fully initialized before resizing
+                console.log("✅ Mol* Viewer initialized!");
+
+                // Wait for the plugin to be fully ready before resizing
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                
+
                 if (viewer?.plugin?.canvas3d) {
                     viewer.handleResize();
                     console.log("✅ Mol* Viewer resized successfully!");
@@ -34,7 +36,6 @@
                     console.warn("⚠ Mol* Viewer is not fully ready for resizing yet.");
                 }
 
-                console.log("✅ Mol* Viewer initialized!");
             } catch (error) {
                 console.error("❌ Error initializing Mol*:", error);
                 alert("Error: Mol* viewer could not be initialized.");
@@ -60,7 +61,11 @@
                 console.log("✅ PDB data fetched successfully!");
 
                 console.log("⏳ Loading structure into Mol*...");
-                await viewer.loadStructureFromData(pdbData, 'pdb');
+
+                // Use Mol* plugin API to properly process and load structure
+                const data = await viewer.plugin.builders.data.rawData({ data: pdbData, label: '1CRN' });
+                const trajectory = await viewer.plugin.builders.structure.parseTrajectory(data, 'pdb');
+                await viewer.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
 
                 console.log("✅ Protein 1CRN loaded successfully!");
 
@@ -70,6 +75,7 @@
                     viewer.handleResize();
                     console.log("✅ Mol* Viewer resized successfully after loading protein!");
                 }
+
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
                 alert(`Error loading protein: ${error.message}. See console for details.`);
