@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,8 +39,20 @@
             }
 
             try {
-                console.log("⏳ Loading protein 1CRN...");
-                await viewer.loadStructureFromUrl('https://files.rcsb.org/download/1CRN.pdb', 'pdb');
+                console.log("⏳ Fetching PDB data...");
+                const response = await fetch('https://files.rcsb.org/download/1CRN.pdb');
+                if (!response.ok) {
+                    throw new Error(`❌ Failed to fetch PDB file: ${response.status} ${response.statusText}`);
+                }
+                const pdbData = await response.text();
+                console.log("✅ PDB data fetched successfully!");
+
+                console.log("⏳ Loading structure into Mol*...");
+                const data = await viewer.plugin.builders.data.rawData({ data: pdbData, label: '1CRN' });
+                const trajectory = await viewer.plugin.builders.structure.parseTrajectory(data, 'pdb');
+                const model = await viewer.plugin.builders.structure.createModel(trajectory);
+                await viewer.plugin.managers.structure.hierarchy.add(model);
+                
                 console.log("✅ Protein 1CRN loaded successfully!");
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
