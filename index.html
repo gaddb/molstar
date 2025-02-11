@@ -24,17 +24,17 @@
                 console.log("⏳ Initializing Mol* Viewer...");
                 viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
 
-                console.log("✅ Mol* Viewer initialized!");
-
-                // Wait for the plugin to be fully ready before resizing
-                await new Promise(resolve => setTimeout(resolve, 1500));
-
+                // Wait until Mol* is fully initialized before resizing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
                 if (viewer?.plugin?.canvas3d) {
                     viewer.handleResize();
                     console.log("✅ Mol* Viewer resized successfully!");
                 } else {
                     console.warn("⚠ Mol* Viewer is not fully ready for resizing yet.");
                 }
+
+                console.log("✅ Mol* Viewer initialized!");
             } catch (error) {
                 console.error("❌ Error initializing Mol*:", error);
                 alert("Error: Mol* viewer could not be initialized.");
