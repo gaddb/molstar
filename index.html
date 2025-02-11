@@ -19,38 +19,48 @@
     <script>
         let viewer;
 
-        function setupMolstar() {
+        async function setupMolstar() {
             try {
-                console.log("Initializing Mol* Viewer...");
+                console.log("⏳ Initializing Mol* Viewer...");
                 viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
-                console.log("Mol* Viewer initialized!");
+                console.log("✅ Mol* Viewer initialized!");
             } catch (error) {
-                console.error("Error initializing Mol*:", error);
+                console.error("❌ Error initializing Mol*:", error);
                 alert("Error: Mol* viewer could not be initialized.");
             }
         }
 
         async function loadProtein() {
             if (!viewer) {
-                console.error("Mol* viewer is not initialized yet.");
+                console.error("❌ Mol* viewer is not initialized yet.");
                 alert("Error: Mol* viewer is not initialized yet.");
                 return;
             }
 
             try {
-                console.log("Fetching PDB data...");
+                console.log("⏳ Fetching PDB data...");
                 const response = await fetch('https://files.rcsb.org/download/1CRN.pdb');
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch PDB file: ${response.status} ${response.statusText}`);
+                    throw new Error(`❌ Failed to fetch PDB file: ${response.status} ${response.statusText}`);
                 }
                 const pdbData = await response.text();
-                console.log("PDB data fetched successfully!");
+                console.log("✅ PDB data fetched successfully!");
 
-                console.log("Loading structure into Mol*...");
-                await viewer.loadStructureFromData(pdbData, 'pdb');
-                console.log("Protein 1CRN loaded successfully!");
+                console.log("⏳ Parsing structure in Mol*...");
+                
+                // Ensure the PDB format is recognized
+                const formatProvider = viewer.plugin.dataFormats.get('pdb');
+                if (!formatProvider) {
+                    throw new Error("❌ Mol* does not support PDB format.");
+                }
+
+                const parsedData = await formatProvider.parse(viewer.plugin, pdbData);
+                const trajectory = await viewer.plugin.builders.structure.parseTrajectory(parsedData, 'pdb');
+                await viewer.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
+
+                console.log("✅ Protein 1CRN loaded successfully!");
             } catch (error) {
-                console.error("Error loading protein:", error);
+                console.error("❌ Error loading protein:", error);
                 alert(`Error loading protein: ${error.message}. See console for details.`);
             }
         }
