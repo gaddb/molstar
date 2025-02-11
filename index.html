@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/molstar/build/viewer/molstar.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
-        #molstar { width: 80%; height: 600px; margin: auto; border: 1px solid #ccc; }
+        #molstar { width: 100%; height: 600px; margin: auto; border: 1px solid #ccc; }
         button { margin: 10px; padding: 10px; font-size: 16px; }
     </style>
 </head>
@@ -21,8 +21,10 @@
 
         async function setupMolstar() {
             try {
-                viewer = new molstar.Viewer('molstar');
-                console.log("✅ Mol* Viewer initialized successfully!");
+                console.log("⏳ Initializing Mol* Viewer...");
+                viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
+                console.log("✅ Mol* Viewer initialized!");
+                setTimeout(() => viewer.handleResize(), 500);  // Ensure correct display size
             } catch (error) {
                 console.error("❌ Error initializing Mol*:", error);
                 alert("Error: Mol* viewer could not be initialized.");
@@ -48,9 +50,14 @@
                 console.log("✅ PDB data fetched successfully!");
 
                 console.log("⏳ Loading structure into Mol*...");
-                await viewer.loadStructureFromData(pdbData, 'pdb');
+                await viewer.dataActions.loadStructure({
+                    format: 'pdb',
+                    data: pdbData
+                });
 
                 console.log("✅ Protein 1CRN loaded successfully!");
+                setTimeout(() => viewer.handleResize(), 500); // Force re-render
+
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
                 alert(`Error loading protein: ${error.message}. See console for details.`);
