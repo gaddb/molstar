@@ -25,11 +25,16 @@
                 viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
 
                 console.log("✅ Mol* Viewer initialized!");
-                setTimeout(() => {
-                    if (viewer && viewer.handleResize) {
-                        viewer.handleResize(); // Ensure correct display size
-                    }
-                }, 500);
+
+                // Wait for the plugin to be ready before trying to resize
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                if (viewer?.plugin?.canvas3d) {
+                    viewer.handleResize();
+                    console.log("✅ Mol* Viewer resized successfully!");
+                } else {
+                    console.warn("⚠ Mol* Viewer is not fully ready for resizing yet.");
+                }
             } catch (error) {
                 console.error("❌ Error initializing Mol*:", error);
                 alert("Error: Mol* viewer could not be initialized.");
@@ -58,12 +63,13 @@
                 await viewer.loadStructureFromData(pdbData, 'pdb');
 
                 console.log("✅ Protein 1CRN loaded successfully!");
-                setTimeout(() => {
-                    if (viewer && viewer.handleResize) {
-                        viewer.handleResize(); // Ensure proper resizing
-                    }
-                }, 500);
 
+                // Ensure Mol* resizes after the structure is loaded
+                await new Promise(resolve => setTimeout(resolve, 500));
+                if (viewer?.plugin?.canvas3d) {
+                    viewer.handleResize();
+                    console.log("✅ Mol* Viewer resized successfully after loading protein!");
+                }
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
                 alert(`Error loading protein: ${error.message}. See console for details.`);
