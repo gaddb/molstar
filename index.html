@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -47,12 +46,17 @@
                 const pdbData = await response.text();
                 console.log("✅ PDB data fetched successfully!");
 
-                console.log("⏳ Loading structure into Mol*...");
-                const data = await viewer.plugin.builders.data.rawData({ data: pdbData, label: '1CRN' });
-                const trajectory = await viewer.plugin.builders.structure.parseTrajectory(data, 'pdb');
+                console.log("⏳ Parsing structure in Mol*...");
+                const format = viewer.plugin.dataFormats.get('pdb');
+                if (!format) {
+                    throw new Error("❌ Mol* does not support PDB format.");
+                }
+
+                const parsedData = await format.parse(viewer.plugin, pdbData);
+                const trajectory = await viewer.plugin.builders.structure.parseTrajectory(parsedData, 'pdb');
                 const model = await viewer.plugin.builders.structure.createModel(trajectory);
-                await viewer.plugin.managers.structure.hierarchy.add(model);
-                
+                await viewer.plugin.builders.structure.hierarchy.applyPreset(model, 'default');
+
                 console.log("✅ Protein 1CRN loaded successfully!");
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
