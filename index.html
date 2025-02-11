@@ -23,8 +23,13 @@
             try {
                 console.log("⏳ Initializing Mol* Viewer...");
                 viewer = new molstar.Viewer('molstar', { layoutIsExpanded: true });
+
                 console.log("✅ Mol* Viewer initialized!");
-                setTimeout(() => viewer.handleResize(), 500);  // Ensure correct display size
+                setTimeout(() => {
+                    if (viewer && viewer.handleResize) {
+                        viewer.handleResize(); // Ensure correct display size
+                    }
+                }, 500);
             } catch (error) {
                 console.error("❌ Error initializing Mol*:", error);
                 alert("Error: Mol* viewer could not be initialized.");
@@ -50,13 +55,14 @@
                 console.log("✅ PDB data fetched successfully!");
 
                 console.log("⏳ Loading structure into Mol*...");
-                await viewer.dataActions.loadStructure({
-                    format: 'pdb',
-                    data: pdbData
-                });
+                await viewer.loadStructureFromData(pdbData, 'pdb');
 
                 console.log("✅ Protein 1CRN loaded successfully!");
-                setTimeout(() => viewer.handleResize(), 500); // Force re-render
+                setTimeout(() => {
+                    if (viewer && viewer.handleResize) {
+                        viewer.handleResize(); // Ensure proper resizing
+                    }
+                }, 500);
 
             } catch (error) {
                 console.error("❌ Error loading protein:", error);
