@@ -104,8 +104,9 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             const modelFilenameBase = `${pdbId}-${timestamp}-${randomId}`;
 
             // ✅ Generate separate GLB and USDZ files
-            const glbData = await this.controls.exportGeometry({ format: 'glb' });
-            const usdzData = await this.controls.exportGeometry({ format: 'usdz' });
+            const glbData = await this.controls.exportGeometry();
+            const usdzData = await this.controls.exportGeometry();
+
 
             // ✅ Convert both files to Base64
             const glbBase64 = await blobToBase64(glbData.blob);
