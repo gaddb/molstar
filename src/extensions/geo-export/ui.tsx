@@ -99,10 +99,15 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             const data = await this.controls.exportGeometry();
             const pdbId = this.plugin.managers.structure.hierarchy.current.structures[0]?.cell.obj?.data?.model?.entryId || 'Unknown';
 
+            // ✅ Generate a unique filename with timestamp & random string
+            const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
+            const randomId = Math.random().toString(36).substring(2, 8);
+            const modelFilename = `${pdbId}-${timestamp}-${randomId}.glb`;
+
             const glbBase64 = await blobToBase64(data.blob);
             const uploadPayload = {
                 glb: glbBase64,
-                pdbId
+                pdbId: modelFilename  // ✅ Use unique filename
             };
 
             const response = await fetch(GITHUB_API_URL, {
@@ -119,7 +124,31 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
 
             if (!response.ok) throw new Error('Failed to trigger upload action');
 
-            alert('Upload triggered successfully. The model will be available soon.');
+            // ✅ Generate the AR model URL
+            const modelUrl = `https://gaddb.github.io/protein-ar-viewer/model.html?glb=${modelFilename}`;
+
+            // ✅ Generate QR Code
+            const qrCodeUrl = await QRCode.toDataURL(modelUrl);
+
+            // ✅ Show Popup with Live Link & QR Code
+            const popup = document.createElement('div');
+            popup.style.position = 'fixed';
+            popup.style.top = '50%';
+            popup.style.left = '50%';
+            popup.style.transform = 'translate(-50%, -50%)';
+            popup.style.backgroundColor = 'white';
+            popup.style.padding = '20px';
+            popup.style.zIndex = '9999';
+            popup.style.border = '1px solid #ccc';
+
+            popup.innerHTML = `
+                <p>Export Complete! Click the link below or scan the QR code to view your model in AR:</p>
+                <p><a href="${modelUrl}" target="_blank">${modelUrl}</a></p>
+                <img src="${qrCodeUrl}" alt="QR Code" style="width: 200px; height: 200px;">
+                <button onclick="document.body.removeChild(this.parentNode)">Close</button>
+            `;
+
+            document.body.appendChild(popup);
 
         } catch (e) {
             console.error(e);
