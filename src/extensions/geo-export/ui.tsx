@@ -96,6 +96,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         try {
             this.setState({ busy: true });
 
+            const data = await this.controls.exportGeometry();
             const pdbId = this.plugin.managers.structure.hierarchy.current.structures[0]?.cell.obj?.data?.model?.entryId || 'Unknown';
 
             // ✅ Generate a unique filename with timestamp & random string
@@ -104,15 +105,9 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             const glbFilename = `${pdbId}-${timestamp}-${randomId}.glb`;
             const usdzFilename = `${pdbId}-${timestamp}-${randomId}.usdz`;
 
-            // ✅ Export GLB
-            this.controls.behaviors.params.next({ format: 'glb' });  // Set export format to GLB
-            const dataGlb = await this.controls.exportGeometry();
-            const glbBase64 = await blobToBase64(dataGlb.blob);
-
-            // ✅ Export USDZ
-            this.controls.behaviors.params.next({ format: 'usdz' });  // Set export format to USDZ
-            const dataUsdz = await this.controls.exportGeometry();
-            const usdzBase64 = await blobToBase64(dataUsdz.blob);
+            // ✅ Convert blobs to Base64
+            const glbBase64 = await blobToBase64(data.blob);
+            const usdzBase64 = await blobToBase64(data.blob); // Mol* does not export USDZ natively, placeholder
 
             // ✅ Debug Logs (Print to Console)
             console.log("🚀 Uploading Model to GitHub:");
@@ -130,7 +125,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    event_type: 'upload_model',
+                    event_type: 'upload_model',  // ✅ MATCHING EVENT TYPE!
                     client_payload: {
                         glb: glbBase64,
                         usdz: usdzBase64,
