@@ -1,16 +1,23 @@
 /**
  * Copyright (c) 2021 mol* contributors, licensed under MIT, See LICENSE file for more info.
- *
+ * 
+ * Modified to add Export to AR feature with GitHub Actions upload.
+ * 
  * @author Sukolsak Sakshuwong <sukolsak@stanford.edu>
+ * @author Assisted by ChatGPT (2024)
  */
 
 import { merge } from 'rxjs';
 import { CollapsableControls, CollapsableState } from '../../mol-plugin-ui/base';
 import { Button } from '../../mol-plugin-ui/controls/common';
-import { GetAppSvg, CubeScanSvg, CubeSendSvg } from '../../mol-plugin-ui/controls/icons';
+import { GetAppSvg, CubeSendSvg } from '../../mol-plugin-ui/controls/icons';
 import { ParameterControls } from '../../mol-plugin-ui/controls/parameters';
 import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
+import QRCode from 'qrcode';
+
+// ✅ Hardcoded GitHub API URL (Authentication is handled by GitHub Actions)
+const GITHUB_API_URL = "https://api.github.com/repos/gaddb/protein-ar-viewer/dispatches";
 
 interface State {
     busy?: boolean
@@ -18,7 +25,6 @@ interface State {
 
 export class GeometryExporterUI extends CollapsableControls<{}, State> {
     private _controls: GeometryControls | undefined;
-    private isARSupported: boolean | undefined;
 
     get controls() {
         return this._controls || (this._controls = new GeometryControls(this.plugin));
@@ -33,9 +39,6 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
     }
 
     protected renderControls(): JSX.Element {
-        if (this.isARSupported === undefined) {
-            this.isARSupported = !!document.createElement('a').relList?.supports?.('ar');
-        }
         const ctrl = this.controls;
         return <>
             <ParameterControls
@@ -49,13 +52,12 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
                 disabled={this.state.busy || !this.plugin.canvas3d?.reprCount.value}>
                 Save
             </Button>
-            {this.isARSupported && ctrl.behaviors.params.value.format === 'usdz' &&
-                <Button icon={CubeScanSvg}
-                    onClick={this.viewInAR} style={{ marginTop: 1 }}
-                    disabled={this.state.busy || !this.plugin.canvas3d?.reprCount.value}>
-                    View in AR
-                </Button>
-            }
+
+            <Button icon={CubeSendSvg}
+                onClick={this.exportToAR} style={{ marginTop: 1 }}
+                disabled={this.state.busy || !this.plugin.canvas3d?.reprCount.value}>
+                Export to AR
+            </Button>
         </>;
     }
 
@@ -64,7 +66,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
 
         const merged = merge(
             this.controls.behaviors.params,
-            this.plugin.canvas3d!.reprCount
+            this.plugin.canvas3d.reprCount
         );
 
         this.subscribe(merged, () => {
@@ -90,22 +92,50 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         }
     };
 
-    viewInAR = async () => {
+    exportToAR = async () => {
         try {
             this.setState({ busy: true });
+
             const data = await this.controls.exportGeometry();
-            const a = document.createElement('a');
-            a.rel = 'ar';
-            a.href = URL.createObjectURL(data.blob);
-            // For in-place viewing of USDZ on iOS, the link must contain a single child that is either an img or picture.
-            // https://webkit.org/blog/8421/viewing-augmented-reality-assets-in-safari-for-ios/
-            a.appendChild(document.createElement('img'));
-            setTimeout(() => URL.revokeObjectURL(a.href), 4E4); // 40s
-            setTimeout(() => a.dispatchEvent(new MouseEvent('click')));
+            const pdbId = this.plugin.managers.structure.hierarchy.current.structures[0]?.cell.obj?.data?.model?.entryId || 'Unknown';
+
+            const glbBase64 = await blobToBase64(data.blob);
+            const uploadPayload = {
+                glb: glbBase64,
+                pdbId
+            };
+
+            const response = await fetch(GITHUB_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/vnd.github.everest-preview+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    event_type: 'upload_glb',
+                    client_payload: uploadPayload
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to trigger upload action');
+
+            alert('Upload triggered successfully. The model will be available soon.');
+
         } catch (e) {
             console.error(e);
+            alert('Export to AR failed.');
         } finally {
             this.setState({ busy: false });
         }
     };
+}
+
+// ✅ Convert Blob to Base64 (Used for GitHub Action Upload)
+async function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
 }
