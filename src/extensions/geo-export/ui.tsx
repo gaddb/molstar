@@ -96,18 +96,26 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         try {
             this.setState({ busy: true });
 
-            const data = await this.controls.exportGeometry();
             const pdbId = this.plugin.managers.structure.hierarchy.current.structures[0]?.cell.obj?.data?.model?.entryId || 'Unknown';
 
             // ✅ Generate a unique filename with timestamp & random string
             const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
             const randomId = Math.random().toString(36).substring(2, 8);
-            const modelFilename = `${pdbId}-${timestamp}-${randomId}.glb`;
+            const modelFilenameBase = `${pdbId}-${timestamp}-${randomId}`;
 
-            const glbBase64 = await blobToBase64(data.blob);
+            // ✅ Generate separate GLB and USDZ files
+            const glbData = await this.controls.exportGeometry({ format: 'glb' });
+            const usdzData = await this.controls.exportGeometry({ format: 'usdz' });
+
+            // ✅ Convert both files to Base64
+            const glbBase64 = await blobToBase64(glbData.blob);
+            const usdzBase64 = await blobToBase64(usdzData.blob);
+
+            // ✅ Send to GitHub Actions
             const uploadPayload = {
                 glb: glbBase64,
-                pdbId: modelFilename  // ✅ Use unique filename
+                usdz: usdzBase64,
+                pdbId: modelFilenameBase
             };
 
             const response = await fetch(GITHUB_API_URL, {
@@ -125,7 +133,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             if (!response.ok) throw new Error('Failed to trigger upload action');
 
             // ✅ Generate the AR model URL
-            const modelUrl = `https://gaddb.github.io/protein-ar-viewer/model.html?glb=${modelFilename}`;
+            const modelUrl = `https://gaddb.github.io/protein-ar-viewer/model.html?glb=${modelFilenameBase}.glb&usdz=${modelFilenameBase}.usdz`;
 
             // ✅ Generate QR Code
             const qrCodeUrl = await QRCode.toDataURL(modelUrl);
