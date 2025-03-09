@@ -16,8 +16,11 @@ import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
 import QRCode from 'qrcode';
 
-// ✅ Hardcoded GitHub API URL (Authentication is handled by GitHub Actions)
+// ✅ Hardcoded GitHub API URL
 const GITHUB_API_URL = "https://api.github.com/repos/gaddb/protein-ar-viewer/dispatches";
+
+// ✅ GitHub Token (Loaded from environment variable)
+const GITHUB_TOKEN = process.env.PAT_TOKEN;
 
 interface State {
     busy?: boolean
@@ -117,15 +120,16 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             console.log("GLB Base64 (first 100 chars):", glbBase64.substring(0, 100) + "...");
             console.log("USDZ Base64 (first 100 chars):", usdzBase64.substring(0, 100) + "...");
 
-            // ✅ Send Upload Request to GitHub Actions
+            // ✅ Send Upload Request to GitHub Actions (Now with Authorization!)
             const response = await fetch(GITHUB_API_URL, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/vnd.github.everest-preview+json',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `token ${GITHUB_TOKEN}` // ✅ Add Authorization Header
                 },
                 body: JSON.stringify({
-                    event_type: 'upload_model',  // ✅ MATCHING EVENT TYPE!
+                    event_type: 'upload_model',
                     client_payload: {
                         glb: glbBase64,
                         usdz: usdzBase64,
