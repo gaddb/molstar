@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2021 mol* contributors, licensed under MIT, See LICENSE file for more info.
  * 
- * Modified to add Export to AR feature with GitHub Actions upload.
+ * Modified to add Export to AR feature with Cloudflare Worker.
  * 
  * @author Sukolsak Sakshuwong <sukolsak@stanford.edu>
  * @author Assisted by ChatGPT (2024)
@@ -16,8 +16,8 @@ import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
 import QRCode from 'qrcode';
 
-// ✅ Hardcoded GitHub API URL (Authentication is handled by GitHub Actions)
-const GITHUB_API_URL = "https://api.github.com/repos/gaddb/protein-ar-viewer/dispatches";
+// ✅ Use Cloudflare Worker API URL instead of GitHub API
+const UPLOADER_API_URL = "https://molstar-uploader.gaddb.workers.dev/";
 
 interface State {
     busy?: boolean
@@ -110,22 +110,22 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             const usdzBase64 = await blobToBase64(data.blob); // Mol* does not export USDZ natively, placeholder
 
             // ✅ Debug Logs (Print to Console)
-            console.log("🚀 Uploading Model to GitHub:");
+            console.log("🚀 Uploading Model via Cloudflare Worker:");
             console.log("PDB ID:", pdbId);
             console.log("GLB Filename:", glbFilename);
             console.log("USDZ Filename:", usdzFilename);
             console.log("GLB Base64 (first 100 chars):", glbBase64.substring(0, 100) + "...");
             console.log("USDZ Base64 (first 100 chars):", usdzBase64.substring(0, 100) + "...");
 
-            // ✅ Send Upload Request to GitHub Actions (NO AUTHORIZATION)
-            const response = await fetch(GITHUB_API_URL, {
+            // ✅ Send Upload Request to Cloudflare Worker
+            const response = await fetch(UPLOADER_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Accept': 'application/vnd.github.everest-preview+json',
+                    'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    event_type: 'upload_model',  // ✅ MATCHING EVENT TYPE!
+                    event_type: 'upload_model',
                     client_payload: {
                         glb: glbBase64,
                         usdz: usdzBase64,
@@ -171,7 +171,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
     };
 }
 
-// ✅ Convert Blob to Base64 (Used for GitHub Action Upload)
+// ✅ Convert Blob to Base64 (Used for Cloudflare Worker Upload)
 async function blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
