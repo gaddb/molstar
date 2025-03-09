@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2021 mol* contributors, licensed under MIT, See LICENSE file for more info.
  * 
- * Modified to add Export to AR feature with GitHub Actions upload.
+ * Modified to add Export to AR feature with Cloudflare Worker.
  * 
  * @author Sukolsak Sakshuwong <sukolsak@stanford.edu>
  * @author Assisted by ChatGPT (2024)
@@ -16,8 +16,8 @@ import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
 import QRCode from 'qrcode';
 
-// ✅ Hardcoded GitHub API URL (Authentication is handled by GitHub Actions)
-const GITHUB_API_URL = "https://api.github.com/repos/gaddb/protein-ar-viewer/dispatches";
+// ✅ Use Cloudflare Worker API URL instead of GitHub API
+const UPLOADER_API_URL = "https://molstar-uploader.gaddb.workers.dev/";
 
 interface State {
     busy?: boolean
@@ -102,30 +102,42 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             // ✅ Generate a unique filename with timestamp & random string
             const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
             const randomId = Math.random().toString(36).substring(2, 8);
-            const modelFilename = `${pdbId}-${timestamp}-${randomId}.glb`;
+            const glbFilename = `${pdbId}-${timestamp}-${randomId}.glb`;
+            const usdzFilename = `${pdbId}-${timestamp}-${randomId}.usdz`;
 
+            // ✅ Convert blobs to Base64
             const glbBase64 = await blobToBase64(data.blob);
-            const uploadPayload = {
-                glb: glbBase64,
-                pdbId: modelFilename  // ✅ Use unique filename
-            };
+            const usdzBase64 = await blobToBase64(data.blob); // Mol* does not export USDZ natively, placeholder
 
-            const response = await fetch(GITHUB_API_URL, {
+            // ✅ Debug Logs (Print to Console)
+            console.log("🚀 Uploading Model via Cloudflare Worker:");
+            console.log("PDB ID:", pdbId);
+            console.log("GLB Filename:", glbFilename);
+            console.log("USDZ Filename:", usdzFilename);
+            console.log("GLB Base64 (first 100 chars):", glbBase64.substring(0, 100) + "...");
+            console.log("USDZ Base64 (first 100 chars):", usdzBase64.substring(0, 100) + "...");
+
+            // ✅ Send Upload Request to Cloudflare Worker
+            const response = await fetch(UPLOADER_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Accept': 'application/vnd.github.everest-preview+json',
+                    'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    event_type: 'upload_glb',
-                    client_payload: uploadPayload
+                    event_type: 'upload_model',
+                    client_payload: {
+                        glb: glbBase64,
+                        usdz: usdzBase64,
+                        pdbId: pdbId
+                    }
                 })
             });
 
             if (!response.ok) throw new Error('Failed to trigger upload action');
 
             // ✅ Generate the AR model URL
-            const modelUrl = `https://gaddb.github.io/protein-ar-viewer/model.html?glb=${modelFilename}`;
+            const modelUrl = `https://gaddb.github.io/protein-ar-viewer/model.html?glb=${glbFilename}&usdz=${usdzFilename}`;
 
             // ✅ Generate QR Code
             const qrCodeUrl = await QRCode.toDataURL(modelUrl);
@@ -159,7 +171,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
     };
 }
 
-// ✅ Convert Blob to Base64 (Used for GitHub Action Upload)
+// ✅ Convert Blob to Base64 (Used for Cloudflare Worker Upload)
 async function blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
