@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2021 mol* contributors, licensed under MIT, See LICENSE file for more info.
  * 
- * Modified to add Export to AR feature with Cloudflare Worker.
+ * Modified to add Export to AR feature with GitHub Actions upload.
  * 
  * @author Sukolsak Sakshuwong <sukolsak@stanford.edu>
  * @author Assisted by ChatGPT (2024)
@@ -16,8 +16,8 @@ import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
 import QRCode from 'qrcode';
 
-// ✅ Use Cloudflare Worker API URL instead of GitHub API
-const UPLOADER_API_URL = "https://molstar-uploader.gaddb.workers.dev/";
+// ✅ Render Uploader URL
+const UPLOADER_API_URL = "https://molstar-uploader.onrender.com/upload";
 
 interface State {
     busy?: boolean
@@ -105,42 +105,39 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             const glbFilename = `${pdbId}-${timestamp}-${randomId}.glb`;
             const usdzFilename = `${pdbId}-${timestamp}-${randomId}.usdz`;
 
-            // ✅ Convert blobs to Base64
-            const glbBase64 = await blobToBase64(data.blob);
-            const usdzBase64 = await blobToBase64(data.blob); // Mol* does not export USDZ natively, placeholder
+            // ✅ Convert GLB to File object
+            const glbFile = new File([data.blob], glbFilename, { type: 'model/gltf-binary' });
+
+            // ✅ Placeholder USDZ file (Mol* does not export USDZ natively)
+            const usdzFile = new File([data.blob], usdzFilename, { type: 'model/vnd.usdz+zip' });
 
             // ✅ Debug Logs (Print to Console)
-            console.log("🚀 Uploading Model via Cloudflare Worker:");
+            console.log("🚀 Uploading Model via Render Service:");
             console.log("PDB ID:", pdbId);
             console.log("GLB Filename:", glbFilename);
             console.log("USDZ Filename:", usdzFilename);
-            console.log("GLB Base64 (first 100 chars):", glbBase64.substring(0, 100) + "...");
-            console.log("USDZ Base64 (first 100 chars):", usdzBase64.substring(0, 100) + "...");
 
-            // ✅ Send Upload Request to Cloudflare Worker
+            // ✅ Prepare multipart/form-data payload
+            const formData = new FormData();
+            formData.append("pdbId", pdbId);
+            formData.append("glb", glbFile);
+            formData.append("usdz", usdzFile);
+
+            // ✅ Send Upload Request
             const response = await fetch(UPLOADER_API_URL, {
                 method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    event_type: 'upload_model',
-                    client_payload: {
-                        glb: glbBase64,
-                        usdz: usdzBase64,
-                        pdbId: pdbId
-                    }
-                })
+                body: formData
             });
 
-            if (!response.ok) throw new Error('Failed to trigger upload action');
+            if (!response.ok) {
+                throw new Error(`Upload failed with status ${response.status}`);
+            }
 
-            // ✅ Generate the AR model URL
-            const modelUrl = `https://gaddb.github.io/protein-ar-viewer/model.html?glb=${glbFilename}&usdz=${usdzFilename}`;
+            const result = await response.json();
+            console.log("✅ Upload successful:", result);
 
-            // ✅ Generate QR Code
-            const qrCodeUrl = await QRCode.toDataURL(modelUrl);
+            // ✅ Generate QR Code for the AR link
+            const qrCodeUrl = await QRCode.toDataURL(result.arLink);
 
             // ✅ Show Popup with Live Link & QR Code
             const popup = document.createElement('div');
@@ -155,7 +152,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
 
             popup.innerHTML = `
                 <p>Export Complete! Click the link below or scan the QR code to view your model in AR:</p>
-                <p><a href="${modelUrl}" target="_blank">${modelUrl}</a></p>
+                <p><a href="${result.arLink}" target="_blank">${result.arLink}</a></p>
                 <img src="${qrCodeUrl}" alt="QR Code" style="width: 200px; height: 200px;">
                 <button onclick="document.body.removeChild(this.parentNode)">Close</button>
             `;
@@ -169,14 +166,4 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
             this.setState({ busy: false });
         }
     };
-}
-
-// ✅ Convert Blob to Base64 (Used for Cloudflare Worker Upload)
-async function blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
 }
