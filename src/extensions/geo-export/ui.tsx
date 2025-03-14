@@ -6,12 +6,11 @@
  */
 
 import * as React from 'react';
-import { PluginContext } from 'molstar/lib/mol-plugin/context';
-import { StructureHierarchyManager } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy';
-import { createGlbExporter } from 'molstar/lib/extensions/model-export/formats/glb';
-import { createUsdzExporter } from 'molstar/lib/extensions/model-export/formats/usdz';
-import QRCode from 'qrcode';
 import { merge } from 'rxjs';
+import { StructureHierarchyManager } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy';
+import { createGlbExporter } from 'molstar/lib/extensions/model-export/exporters/glb';
+import { createUsdzExporter } from 'molstar/lib/extensions/model-export/exporters/usdz';
+import QRCode from 'qrcode';
 import { CollapsableControls, CollapsableState } from '../../mol-plugin-ui/base';
 import { Button } from '../../mol-plugin-ui/controls/common';
 import { GetAppSvg, CubeScanSvg, CubeSendSvg } from '../../mol-plugin-ui/controls/icons';
@@ -19,7 +18,7 @@ import { ParameterControls } from '../../mol-plugin-ui/controls/parameters';
 import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
 
-// ✅ Your Render proxy URL (this sends models securely to your GitHub repo)
+// ✅ Render server for secure uploads
 const UPLOAD_PROXY_URL = "https://molstar-uploader.onrender.com/upload";
 
 interface State {
@@ -133,12 +132,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
                 return;
             }
 
-            // ✅ Generate unique filenames with timestamp & random ID
             const pdbId = structures[0].cell.obj?.data.models[0]?.entryId || 'unknown';
-            const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
-            const randomString = Math.random().toString(36).slice(2, 8);
-            const glbFilename = `${pdbId}-${timestamp}-${randomString}.glb`;
-            const usdzFilename = `${pdbId}-${timestamp}-${randomString}.usdz`;
 
             console.log("🔄 Generating GLB model...");
             const glbExporter = createGlbExporter(plugin);
@@ -172,7 +166,6 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         }
     };
 
-    // ✅ Function to show a popup with AR link & QR code
     showPopup = (arLink: string, qrCodeUrl: string) => {
         const popup = document.createElement('div');
         popup.style.position = 'fixed';
@@ -197,7 +190,6 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
     };
 }
 
-// ✅ Helper function to convert Blob to Base64
 async function blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
