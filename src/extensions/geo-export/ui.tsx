@@ -2,9 +2,15 @@
  * Copyright (c) 2021 mol* contributors, licensed under MIT, See LICENSE file for more info.
  *
  * @author Sukolsak Sakshuwong <sukolsak@stanford.edu>
- * @modified ChatGPT (2025) - Added Export to AR functionality with token proxy.
+ * @modified Assisted by ChatGPT (2024) - Added Export to AR feature with Render proxy for GitHub authentication.
  */
 
+import * as React from 'react';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { StructureHierarchyManager } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy';
+import { createGlbExporter } from 'molstar/lib/extensions/model-export/formats/glb';
+import { createUsdzExporter } from 'molstar/lib/extensions/model-export/formats/usdz';
+import QRCode from 'qrcode';
 import { merge } from 'rxjs';
 import { CollapsableControls, CollapsableState } from '../../mol-plugin-ui/base';
 import { Button } from '../../mol-plugin-ui/controls/common';
@@ -12,10 +18,8 @@ import { GetAppSvg, CubeScanSvg, CubeSendSvg } from '../../mol-plugin-ui/control
 import { ParameterControls } from '../../mol-plugin-ui/controls/parameters';
 import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
-import QRCode from 'qrcode';
 
-// ✅ Update with your Render server URL
-const TOKEN_PROXY_URL = "https://molstar-uploader.onrender.com/token";
+// ✅ Your Render proxy URL (this sends models securely to your GitHub repo)
 const UPLOAD_PROXY_URL = "https://molstar-uploader.onrender.com/upload";
 
 interface State {
@@ -122,43 +126,41 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         try {
             this.setState({ busy: true });
 
-            const data = await this.controls.exportGeometry();
-            const pdbId = this.plugin.managers.structure.hierarchy.current.structures[0]?.cell.obj?.data?.model?.entryId || 'Unknown';
+            const plugin = this.plugin;
+            const structures = StructureHierarchyManager.getStructures(plugin);
+            if (structures.length === 0) {
+                alert('No structure loaded!');
+                return;
+            }
 
-            // ✅ Generate a unique filename with timestamp & random string
+            // ✅ Generate unique filenames with timestamp & random ID
+            const pdbId = structures[0].cell.obj?.data.models[0]?.entryId || 'unknown';
             const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
-            const randomId = Math.random().toString(36).substring(2, 8);
-            const glbFilename = `${pdbId}-${timestamp}-${randomId}.glb`;
-            const usdzFilename = `${pdbId}-${timestamp}-${randomId}.usdz`;
+            const randomString = Math.random().toString(36).slice(2, 8);
+            const glbFilename = `${pdbId}-${timestamp}-${randomString}.glb`;
+            const usdzFilename = `${pdbId}-${timestamp}-${randomString}.usdz`;
 
             console.log("🔄 Generating GLB model...");
-            const glbBlob = await data.blob;
+            const glbExporter = createGlbExporter(plugin);
+            const glbBlob = await glbExporter.export(plugin);
             const glbBase64 = await blobToBase64(glbBlob);
 
             console.log("🔄 Generating USDZ model...");
-            const usdzBlob = await data.blob;  // Use the same blob unless separated
+            const usdzExporter = createUsdzExporter(plugin);
+            const usdzBlob = await usdzExporter.export(plugin);
             const usdzBase64 = await blobToBase64(usdzBlob);
 
-            console.log("⬆️ Requesting GitHub Token...");
-            const tokenResponse = await fetch(TOKEN_PROXY_URL);
-            if (!tokenResponse.ok) throw new Error('Failed to retrieve GitHub token.');
-            const { token } = await tokenResponse.json();
-
             console.log("⬆️ Uploading Model via Proxy Service...");
-            const uploadResponse = await fetch(UPLOAD_PROXY_URL, {
+            const response = await fetch(UPLOAD_PROXY_URL, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ pdbId, glb: glbBase64, usdz: usdzBase64 })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pdbId, glb: glbBase64, usdz: usdzBase64 }),
             });
 
-            const result = await uploadResponse.json();
+            const result = await response.json();
             if (result.success) {
                 console.log("✅ Upload successful:", result.arLink);
-                alert("Model uploaded! Scan the QR code or click the link to view in AR.");
-                window.open(result.arLink, "_blank");
+                this.showPopup(result.arLink, result.qrCodeUrl);
             } else {
                 throw new Error(result.error || "Upload failed.");
             }
@@ -168,6 +170,30 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         } finally {
             this.setState({ busy: false });
         }
+    };
+
+    // ✅ Function to show a popup with AR link & QR code
+    showPopup = (arLink: string, qrCodeUrl: string) => {
+        const popup = document.createElement('div');
+        popup.style.position = 'fixed';
+        popup.style.top = '50%';
+        popup.style.left = '50%';
+        popup.style.transform = 'translate(-50%, -50%)';
+        popup.style.backgroundColor = 'white';
+        popup.style.padding = '20px';
+        popup.style.border = '1px solid #ccc';
+        popup.style.zIndex = '9999';
+
+        popup.innerHTML = `
+            <p><strong>Export Complete!</strong></p>
+            <p>Click the link below or scan the QR code to view your model in AR:</p>
+            <p><a href="${arLink}" target="_blank">${arLink}</a></p>
+            <img src="${qrCodeUrl}" alt="QR Code" style="width: 200px; height: 200px;">
+            <br><br>
+            <button onclick="document.body.removeChild(this.parentNode)">Close</button>
+        `;
+
+        document.body.appendChild(popup);
     };
 }
 
