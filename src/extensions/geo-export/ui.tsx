@@ -2,18 +2,20 @@
  * Copyright (c) 2021 mol* contributors, licensed under MIT, See LICENSE file for more info.
  *
  * @author Sukolsak Sakshuwong <sukolsak@stanford.edu>
+ * Modified for AR Export by Brian Gadd with help from ChatGPT
  */
-
 import { merge } from 'rxjs';
 import { CollapsableControls, CollapsableState } from '../../mol-plugin-ui/base';
 import { Button } from '../../mol-plugin-ui/controls/common';
-import { GetAppSvg, CubeScanSvg, CubeSendSvg } from '../../mol-plugin-ui/controls/icons';
+import { GetAppSvg, CubeSendSvg } from '../../mol-plugin-ui/controls/icons'; // Removed CubeScanSvg
 import { ParameterControls } from '../../mol-plugin-ui/controls/parameters';
 import { download } from '../../mol-util/download';
 import { GeometryParams, GeometryControls } from './controls';
+import QRCode from 'qrcode';
+import { v4 as uuidv4 } from 'uuid';
 
 interface State {
-    busy?: boolean
+    busy?: boolean;
 }
 
 export class GeometryExporterUI extends CollapsableControls<{}, State> {
@@ -36,7 +38,9 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         if (this.isARSupported === undefined) {
             this.isARSupported = !!document.createElement('a').relList?.supports?.('ar');
         }
+
         const ctrl = this.controls;
+
         return <>
             <ParameterControls
                 params={GeometryParams}
@@ -49,6 +53,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
                 disabled={this.state.busy || !this.plugin.canvas3d?.reprCount.value}>
                 Save
             </Button>
+            {/*
             {this.isARSupported && ctrl.behaviors.params.value.format === 'usdz' &&
                 <Button icon={CubeScanSvg}
                     onClick={this.viewInAR} style={{ marginTop: 1 }}
@@ -56,6 +61,12 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
                     View in AR
                 </Button>
             }
+            */}
+            <Button icon={CubeSendSvg}
+                onClick={this.exportToAR} style={{ marginTop: 1 }}
+                disabled={this.state.busy || !this.plugin.canvas3d?.reprCount.value}>
+                Export to AR
+            </Button>
         </>;
     }
 
@@ -64,7 +75,7 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
 
         const merged = merge(
             this.controls.behaviors.params,
-            this.plugin.canvas3d!.reprCount
+            this.plugin.canvas3d.reprCount
         );
 
         this.subscribe(merged, () => {
@@ -90,22 +101,67 @@ export class GeometryExporterUI extends CollapsableControls<{}, State> {
         }
     };
 
-    viewInAR = async () => {
+    exportToAR = async () => {
         try {
             this.setState({ busy: true });
-            const data = await this.controls.exportGeometry();
-            const a = document.createElement('a');
-            a.rel = 'ar';
-            a.href = URL.createObjectURL(data.blob);
-            // For in-place viewing of USDZ on iOS, the link must contain a single child that is either an img or picture.
-            // https://webkit.org/blog/8421/viewing-augmented-reality-assets-in-safari-for-ios/
-            a.appendChild(document.createElement('img'));
-            setTimeout(() => URL.revokeObjectURL(a.href), 4E4); // 40s
-            setTimeout(() => a.dispatchEvent(new MouseEvent('click')));
+
+            const timestamp = Date.now();
+            const uniqueId = uuidv4().slice(0, 6);
+            const baseName = `model-${timestamp}-${uniqueId}`;
+
+            // Export GLB
+            this.controls.behaviors.params.next({ ...this.controls.behaviors.params.value, format: 'glb' });
+            const glbData = await this.controls.exportGeometry();
+
+            // Export USDZ
+            this.controls.behaviors.params.next({ ...this.controls.behaviors.params.value, format: 'usdz' });
+            const usdzData = await this.controls.exportGeometry();
+
+            // Get token from Render server
+            const tokenRes = await fetch('https://molstar-uploader.onrender.com/token');
+            const { token } = await tokenRes.json();
+
+            await uploadFileToGitHub(`${baseName}.glb`, glbData.blob, token);
+            await uploadFileToGitHub(`${baseName}.usdz`, usdzData.blob, token);
+
+            const viewUrl = `https://gaddb.github.io/protein-ar-viewer/view.html?model=${baseName}`;
+            const qrCode = await QRCode.toDataURL(viewUrl);
+
+            const w = window.open('', '_blank');
+            if (w) {
+                w.document.write(`<h2>Scan to View in AR</h2><p><a href="${viewUrl}" target="_blank">${viewUrl}</a></p><img src="${qrCode}" alt="QR Code">`);
+            }
+
         } catch (e) {
             console.error(e);
+            alert(`AR export failed: ${e}`);
         } finally {
             this.setState({ busy: false });
         }
     };
 }
+
+// Moved out of class to avoid stack overflow
+async function uploadFileToGitHub(filename: string, blob: Blob, token: string) {
+    const content = await blob.arrayBuffer();
+    const base64Content = btoa(String.fromCharCode(...new Uint8Array(content)));
+
+    const res = await fetch(`https://api.github.com/repos/gaddb/protein-ar-viewer/contents/models/${filename}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github+json'
+        },
+        body: JSON.stringify({
+            message: `Add ${filename} via Mol* AR exporter`,
+            content: base64Content
+        })
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Upload failed: ${res.status}\n${text}`);
+    }
+}
+
